@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calorie Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 2px 2px 12px #aaa;
+            background-color: #fff;
+        }
+
+        .ingredient {
+            margin-bottom: 10px;
+        }
+
+        .ingredient label, .ingredient input {
+            display: block;
+            margin-bottom: 5px;
+            width: 100%;
+        }
+
+        .ingredient input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        .add-ingredient, .calculate {
+            padding: 10px 15px;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+        }
+
+        .add-ingredient {
+            background-color: #007bff;
+        }
+
+        .calculate {
+            background-color: #28a745;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #28a745;
+            border-radius: 5px;
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                margin: 10px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+
+            .add-ingredient, .calculate {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Calorie Calculator</h1>
+    <form id="calorie-form">
+        <div id="ingredients-container">
+            <div class="ingredient">
+                <label for="ingredient1-name">Ingredient 1:</label>
+                <input type="text" id="ingredient1-name" name="ingredient-name" placeholder="Name (e.g., Tomato)">
+                <input type="number" id="ingredient1-carbohydrates" name="ingredient-carbohydrates" placeholder="Carbs"
+                       min="0">
+                <input type="number" id="ingredient1-protein" name="ingredient-protein" placeholder="Protein" min="0">
+                <input type="number" id="ingredient1-total-fat" name="ingredient-total-fat" placeholder="Total Fat"
+                       min="0">
+                <input type="number" id="ingredient1-saturated-fat" name="ingredient-saturated-fat"
+                       placeholder="Saturated Fat" min="0">
+            </div>
+        </div>
+        <button type="button" class="add-ingredient" onclick="addIngredient()">Add Another Ingredient</button>
+        <button type="button" class="calculate" onclick="sendRequest()">Calculate Total Nutrients</button>
+    </form>
+    <div id="result" class="result" style="display: none;"></div>
+</div>
+
+<script>
+    let ingredientCount = 1;
+
+    function addIngredient() {
+        ingredientCount++;
+        const container = document.getElementById('ingredients-container');
+        const newIngredient = document.createElement('div');
+        newIngredient.classList.add('ingredient');
+        newIngredient.innerHTML = `
+                <label for="ingredient${ingredientCount}-name">Ingredient ${ingredientCount}:</label>
+                <input type="text" id="ingredient${ingredientCount}-name" name="ingredient-name" placeholder="Name (e.g., Tomato)">
+                <input type="number" id="ingredient${ingredientCount}-carbohydrates" name="ingredient-carbohydrates" placeholder="Carbs" min="0">
+                <input type="number" id="ingredient${ingredientCount}-protein" name="ingredient-protein" placeholder="Protein" min="0">
+                <input type="number" id="ingredient${ingredientCount}-total-fat" name="ingredient-total-fat" placeholder="Total Fat" min="0">
+                <input type="number" id="ingredient${ingredientCount}-saturated-fat" name="ingredient-saturated-fat" placeholder="Saturated Fat" min="0">
+            `;
+        container.appendChild(newIngredient);
+    }
+
+    function sendRequest() {
+        const url = 'http://localhost:8080/nutritionfacts';
+
+        const ingredients = [];
+
+        const ingredientInputs = document.querySelectorAll('.ingredient input');
+
+        let currentIngredient = {};
+
+        ingredientInputs.forEach(input => {
+            if (input.name === 'ingredient-name') {
+                if (Object.keys(currentIngredient).length !== 0) {
+                    ingredients.push(currentIngredient);
+                    currentIngredient = {};
+                }
+                currentIngredient.name = input.value;
+            } else if (input.type !== 'button') {
+                const value = parseFloat(input.value);
+                if (!isNaN(value) && value >= 0) {
+                    switch (input.name) {
+                        case 'ingredient-carbohydrates':
+                            currentIngredient.carbs = value;
+                            break;
+                        case 'ingredient-protein':
+                            currentIngredient.proteins = value;
+                            break;
+                        case 'ingredient-total-fat':
+                            currentIngredient.totalFats = value;
+                            break;
+                        case 'ingredient-saturated-fat':
+                            currentIngredient.saturatedFats = value;
+                            break;
+                    }
+                } else {
+                    alert('Please enter valid non-negative numbers for all fields.');
+                    return;
+                }
+            }
+        });
+
+        if (Object.keys(currentIngredient).length !== 0) {
+            ingredients.push(currentIngredient);
+        }
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(ingredients)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = `
+            <p>Nutrition Facts:</p>
+            <p>Carbs: ${data.carbs} g</p>
+            <p>Proteins: ${data.proteins} g</p>
+            <p>Total Fats: ${data.totalFats} g</p>
+            <p>Saturated Fats: ${data.saturatedFats} g</p>
+            <p>Caloric Value: ${data.caloricValue} kcal</p>
+        `;
+                resultDiv.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('There was a problem with the fetch operation:', error);
+            });
+    }
+
+</script>
+</body>
+</html>
